@@ -4,6 +4,7 @@ import math
 import unittest
 import types
 
+
 class Model(object):
 
     def __init__(self):
@@ -15,7 +16,7 @@ class Model(object):
 
     def get_item(self, i):
         return next(self.get_items([i]))
-        
+
     def get_items(self, ids):
         for i in ids:
             gen = Generator(i+1)  # Avoid 0

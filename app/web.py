@@ -4,6 +4,7 @@ import re
 import json
 import random
 
+
 from zope.interface import Interface, Attribute, implements
 from twisted.python.components import registerAdapter
 from twisted.internet.task import deferLater
@@ -18,78 +19,102 @@ from model import Model
 from view import View
 
 
+class SettingsFromUrl(object):
+
+    url_to_settings = {
+        # Website structure
+        "ti": "SPEED_TOTAL_ITEMS",
+        "dp": "SPEED_DETAILS_PER_INDEX_PAGE",
+        "id": "SPEED_ITEMS_PER_DETAIL",
+        "ds": "SPEED_DETAIL_EXTRA_SIZE",
+        "ip": "SPEED_INDEX_POINTAHEAD",
+        # Response times
+        "rr": "SPEED_T_RESPONSE",
+        "ar": "SPEED_API_T_RESPONSE",
+        "dr": "SPEED_DETAIL_T_RESPONSE",
+        "ir": "SPEED_INDEX_T_RESPONSE",
+    }
+
+    def __init__(self, request):
+        parts = request.URLPath().pathList(unquote=True)
+        k_v_pairs = map(lambda i: i.split(":"), parts)
+        vars = filter(lambda i: len(i) == 2, k_v_pairs)
+        mapped = SettingsFromUrl.url_to_settings
+        self._settings = {}
+        for key, value in vars:
+            if key in mapped:
+                self._settings[mapped[key]] = value
+
+    def getfloat(self, key, default):
+        return float(self._settings.get(key, default))
+
+    def getint(self, key, default):
+        return int(self._settings.get(key, default))
+
+
 class BaseResource(Resource):
     isLeaf = True
 
-    def __init__(self, delay):
-        Resource.__init__(self)
-        self.delay = delay
-
-    @staticmethod
-    def get_if(request, k, default, cls):
-        try:
-            return cls(request.args[k][0])
-        except:
-            return default
-
     def render_GET(self, request):
+        settings = SettingsFromUrl(request)
+
+        print self.class_delay_setting, " - ", self.default_delay
+
+        gen_delay = settings.getfloat('SPEED_T_RESPONSE', self.default_delay)
+        delay = settings.getfloat(self.class_delay_setting, gen_delay)
+
         # https://twistedmatrix.com/documents/13.0.0/web/howto/
         #web-in-60/asynchronous-deferred.html
-        d = deferLater(reactor, self.delay, lambda: request)
-        d.addCallback(self._delayedRender)
+        d = deferLater(reactor, delay, lambda: request)
+        d.addCallback(self._delayedRender, settings)
         return server.NOT_DONE_YET
 
     render_POST = render_GET
 
 
-class Dummy(object):
-
-    def getfloat(self, str, default):
-        return default
-
-    def getint(self, str, default):
+def get_if(request, k, default, cls):
+    try:
+        return cls(request.args[k][0])
+    except:
         return default
 
 
 class Api(BaseResource):
 
-    def __init__(self, settings=Dummy()):
-        delay = settings.getfloat('SPEED_API_T_RESPONSE',
-                                  settings.getfloat('SPEED_T_RESPONSE', 3))
-        BaseResource.__init__(self, delay)
+    class_delay_setting = 'SPEED_API_T_RESPONSE'
+    default_delay = 3
 
-    def _delayedRender(self, request):
-        text = self.get_if(request, 'text', '', str)
+    def _delayedRender(self, request, settings):
+        text = get_if(request, 'text', '', str)
         request.write(json.dumps({"translation": "api-t-%s" % "".join(text)}))
         request.finish()
 
 
 class Index(BaseResource):
 
-    def __init__(self, settings=Dummy()):
-        delay = settings.getfloat('SPEED_INDEX_T_RESPONSE',
-                                  settings.getfloat('SPEED_T_RESPONSE', 0.5))
-        BaseResource.__init__(self, delay)
-        self.details_per_index = settings.getint(
+    class_delay_setting = 'SPEED_INDEX_T_RESPONSE'
+    default_delay = 0.5
+
+    def _delayedRender(self, request, settings):
+        details_per_index = settings.getint(
             'SPEED_DETAILS_PER_INDEX_PAGE', 20)
-        self.items_per_page = settings.getint('SPEED_ITEMS_PER_DETAIL', 1)
-        self.limit = settings.getint('SPEED_TOTAL_ITEMS', 1000)
-        self.index_lookahead = settings.getint('SPEED_INDEX_POINTAHEAD', 1)
+        items_per_page = settings.getint('SPEED_ITEMS_PER_DETAIL', 1)
+        limit = settings.getint('SPEED_TOTAL_ITEMS', 1000)
+        index_lookahead = settings.getint('SPEED_INDEX_POINTAHEAD', 1)
 
-    def _delayedRender(self, request):
-        p = self.get_if(request, 'p', 1, int)
+        p = get_if(request, 'p', 1, int)
 
-        page_worth = self.details_per_index * self.items_per_page
+        page_worth = details_per_index * items_per_page
         # ...divide with roundup
-        max_pages = (self.limit + page_worth - 1) / page_worth
+        max_pages = (limit + page_worth - 1) / page_worth
 
         if p >= 1 and p <= max_pages:
-            base = (p-1) * self.details_per_index
+            base = (p-1) * details_per_index
             request.write('<ul>')
-            for i in xrange(self.details_per_index):
-                id = ((base+i)*self.items_per_page)+1
-                if id <= self.limit:
-                    ids = [id, min(id + self.items_per_page - 1, self.limit)]
+            for i in xrange(details_per_index):
+                id = ((base+i)*items_per_page)+1
+                if id <= limit:
+                    ids = [id, min(id + items_per_page - 1, limit)]
                     irange = sorted(list(set(ids)))
                     srange = "-".join([str(i) for i in irange])
                     request.write('<li><a class="item" href="detail'
@@ -97,7 +122,7 @@ class Index(BaseResource):
 
             request.write('</ul>')
 
-            for i in xrange(self.index_lookahead):
+            for i in xrange(index_lookahead):
                 if (p+i) < max_pages:
                     request.write('<a class="nav" href="index?p=%d">next</a> '
                                   % (p+i+1))
@@ -107,18 +132,17 @@ class Index(BaseResource):
 
 class Detail(BaseResource):
 
-    def __init__(self, settings=Dummy()):
-        delay = settings.getfloat('SPEED_DETAIL_T_RESPONSE',
-                                  settings.getfloat('SPEED_T_RESPONSE', 1))
-        BaseResource.__init__(self, delay)
-        self.items_per_page = settings.getint('SPEED_ITEMS_PER_DETAIL', 1)
-        self.limit = settings.getint('SPEED_TOTAL_ITEMS', 1000)
-        self.garbage_size = settings.getint('SPEED_DETAIL_EXTRA_SIZE', 0)
+    class_delay_setting = 'SPEED_DETAIL_T_RESPONSE'
+    default_delay = 1
 
-    def _delayedRender(self, request):
-        id0 = self.get_if(request, 'id0', 1, int)
+    def _delayedRender(self, request, settings):
+        items_per_page = settings.getint('SPEED_ITEMS_PER_DETAIL', 1)
+        limit = settings.getint('SPEED_TOTAL_ITEMS', 1000)
+        garbage_size = settings.getint('SPEED_DETAIL_EXTRA_SIZE', 0)
+
+        id0 = get_if(request, 'id0', 1, int)
         request.write('<ul>')
-        for idx in xrange(id0, min(id0+self.items_per_page, self.limit+1)):
+        for idx in xrange(id0, min(id0+items_per_page, limit+1)):
             request.write('<li>')
             request.write('<h3>I\'m %d</h3>' % idx)
             request.write('<div class="info">useful info for id: %d</div>'
@@ -126,7 +150,7 @@ class Detail(BaseResource):
             request.write('</li>')
         request.write('</ul>')
         request.write('<!--')
-        request.write("i" * self.garbage_size)
+        request.write("i" * garbage_size)
         request.write('-->')
         request.finish()
 
@@ -226,15 +250,18 @@ class Dynamic(Resource):
 
 class Properties(BaseResource):
 
+    class_delay_setting = 'SPEED_PROPERTIES_T_RESPONSE'
+    default_delay = 0.25
+
     def __init__(self):
         # 250 ms default delay
-        BaseResource.__init__(self, 0.25)
+        BaseResource.__init__(self)
 
         self.model = Model()
         self.properties = 50000
         self.per_index = 30
 
-    def _delayedRender(self, request):
+    def _delayedRender(self, request, settings):
         try:
             properties, per_index = self.properties, self.per_index
 
@@ -287,7 +314,7 @@ class Properties(BaseResource):
                 request.write(View.render_property(item))
             else:
                 raise Exception('unknown page')
-                
+
         except:
             request.write('can\'t find page. sorry')
 
