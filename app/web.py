@@ -58,8 +58,6 @@ class BaseResource(Resource):
     def render_GET(self, request):
         settings = SettingsFromUrl(request)
 
-        print self.class_delay_setting, " - ", self.default_delay
-
         gen_delay = settings.getfloat('SPEED_T_RESPONSE', self.default_delay)
         delay = settings.getfloat(self.class_delay_setting, gen_delay)
 
