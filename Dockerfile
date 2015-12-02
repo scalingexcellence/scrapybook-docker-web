@@ -21,7 +21,7 @@ COPY scripts /tmp/scripts
 RUN /tmp/scripts/setup.sh
 
 # Custom part for web's image
-COPY app app
+COPY app /opt/app
 
 RUN mkdir /etc/service/bookweb
 ADD start.sh /etc/service/bookweb/run

@@ -198,14 +198,15 @@ class Dynamic(Resource):
 
     def render_GET(self, request):
         session = request.getSession()
-        tsesion = ILoginGate(session)
+        tsession = ILoginGate(session)
 
         try:
             if request.path == "/dynamic":
-                return View.render_form(tsesion.nonce)
-
+                return View.render_form()
+            elif request.path == "/dynamic/nonce":
+                return View.render_form(tsession.nonce)
             elif request.path == "/dynamic/gated":
-                if not tsesion.logged_in:
+                if not tsession.logged_in:
                     return redirectTo("/dynamic/error", request)
 
                 return View.render_gated()
@@ -217,7 +218,7 @@ class Dynamic(Resource):
 
     def render_POST(self, request):
         session = request.getSession()
-        tsesion = ILoginGate(session)
+        tsession = ILoginGate(session)
         location = "/dynamic/error"
 
         try:
@@ -227,7 +228,7 @@ class Dynamic(Resource):
             if request.path == "/dynamic/nonce-login":
                 nonce = request.args.get('nonce', [''])[0]
 
-                if tsesion.nonce != nonce:
+                if tsession.nonce != nonce:
                     session.expire()
                     raise Exception('invalid nonce')
 
@@ -237,7 +238,7 @@ class Dynamic(Resource):
                     session.expire()
                 raise Exception('invalid user/pass')
 
-            tsesion.logged_in = True
+            tsession.logged_in = True
             location = "/dynamic/gated"
 
         except:
@@ -267,7 +268,7 @@ class Properties(BaseResource):
                 items = []
                 for i in xrange(30):
                     item = self.model.get_item(i)
-                    items.append({'id': i, "title": item['title']})
+                    items.append({'id': i, "title": "better " + item['title']})
 
                 request.setHeader("content-type", "application/json")
                 request.write(json.dumps(items))
@@ -325,6 +326,7 @@ class Root(Resource):
         self.putChild("benchmark", Benchmark())
         self.putChild("properties", Properties())
         self.putChild("images", File('images'))
+        self.putChild("static", File('static'))
         self.putChild("dynamic", Dynamic())
 
     def getChild(self, name, request):

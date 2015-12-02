@@ -6,7 +6,14 @@ class View(object):
     """Yaick! This class hurts my eyes... but it's fast and simple
     """
     @staticmethod
-    def render_form(uid):
+    def render_form(uid=None):
+        if uid:
+            target = '/dynamic/nonce-login'
+            nonce = '<input type="hidden" name="nonce" value="%s" />' % uid
+        else:
+            target = '/dynamic/login'
+            nonce = ''
+
         return """
 <!DOCTYPE html>
 <head>
@@ -15,15 +22,15 @@ class View(object):
 </head>
 <body>
 <h1>Welcome, please login</h1>
-<form method="post" action="/dynamic/nonce-login">
+<form method="post" action="%s">
 <p><input type="text" name="user" value="" placeholder="Username"></p>
 <p><input type="password" name="pass" value="" placeholder="Password"></p>
 <p class="submit"><input type="submit" name="submit" value="Login"></p>
-<input type="hidden" name="nonce" value="%s" />
+%s
 </form>
 </body>
 </html>
-""" % uid
+""" % (target, nonce)
 
     @staticmethod
     def render_error():
