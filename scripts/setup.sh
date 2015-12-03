@@ -4,10 +4,10 @@ apt-get -y update
 
 apt-get -y install python-pip python-lxml python-crypto \
     python-cssselect python-openssl python-w3lib \
-    python-pyasn1-modules python-twisted
+    python-pyasn1-modules python-twisted python-imaging
 
 # Ohter dev tools. apache2-utils for the useful ab benchmark
-apt-get -y install git curl apache2-utils mysql-client redis-tools
+apt-get -y install git curl apache2-utils mysql-client redis-tools telnet tree
 
 # Prereq and core
 pip install characteristic scrapy==1.0.3 scrapyd==1.1.0
