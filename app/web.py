@@ -247,16 +247,41 @@ class Dynamic(Resource):
         return redirectTo(location, request)
 
 
+class Maps(BaseResource):
+    class_delay_setting = 'SPEED_MAPS_T_RESPONSE'
+    default_delay = 0.25
+
+    def __init__(self, model):
+        # 250 ms default delay
+        BaseResource.__init__(self)
+
+        self.model = model
+
+    def _delayedRender(self, request, settings):
+        try:
+            address = get_if(request, 'address', '', str)
+
+            location = self.model.get_location(address)
+
+            request.setHeader("content-type", "application/json")
+            request.write(View.render_maps(location))
+
+        except:
+            request.write('can\'t find page. sorry')
+
+        request.finish()
+
+
 class Properties(BaseResource):
 
     class_delay_setting = 'SPEED_PROPERTIES_T_RESPONSE'
     default_delay = 0.25
 
-    def __init__(self):
+    def __init__(self, model):
         # 250 ms default delay
         BaseResource.__init__(self)
 
-        self.model = Model()
+        self.model = model
         self.properties = 50000
         self.per_index = 30
 
@@ -323,8 +348,10 @@ class Properties(BaseResource):
 class Root(Resource):
     def __init__(self):
         Resource.__init__(self)
+        self.model = Model()
         self.putChild("benchmark", Benchmark())
-        self.putChild("properties", Properties())
+        self.putChild("properties", Properties(self.model))
+        self.putChild("maps", Maps(self.model))
         self.putChild("images", File('images'))
         self.putChild("static", File('static'))
         self.putChild("dynamic", Dynamic())

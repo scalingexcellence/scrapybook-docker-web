@@ -3,16 +3,25 @@
 import math
 import unittest
 import types
+import json
 
 
 class Model(object):
 
     def __init__(self):
-        self._locations = Model.from_file("locations.txt")
         self._titles = Model.from_file("titles.txt")
         self._descriptions = Model.from_file("descriptions.txt")
         gen = Generator(0xc0febabe)
         self._title_weights = gen.create_weights(self._titles)
+
+        locations = Model.from_json_file("locations.json")
+        self._locations = []
+        self._location_index = {}
+        for i in locations:
+            loc = i["location"].encode("utf8")
+            i["location"] = loc
+            self._locations.append(loc)
+            self._location_index[loc] = i
 
     def get_item(self, i):
         return next(self.get_items([i]))
@@ -36,9 +45,18 @@ class Model(object):
                 "link": "property_%06d.html" % i
             }
 
+    def get_location(self, address):
+        return self._location_index.get(address, None)
+
     @staticmethod
     def from_file(file):
-        return filter(None, [line.strip() for line in open(file)])
+        with open(file, 'r') as f:
+            return filter(None, [line.strip() for line in f])
+
+    @staticmethod
+    def from_json_file(file):
+        with open(file, 'r') as f:
+            return json.loads(f.read())
 
 
 # Use this instead of rand because it will be the same no matter

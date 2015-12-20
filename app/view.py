@@ -136,3 +136,14 @@ a {text-decoration:none;}
             item['image'],
             item['address']
             )
+
+    @staticmethod
+    def render_maps(location):
+        print "booo: %s" % location
+        if location:
+            return """
+{"status": "OK", "results": [
+ {"geometry": {"location": {"lat": %f, "lng": %f}}}
+]}""" % (location['lat'], location['lng'])
+        else:
+            return """{"status": "ZERO_RESULTS"}"""
