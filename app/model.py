@@ -30,11 +30,12 @@ class Model(object):
         for i in ids:
             gen = Generator(i+1)  # Avoid 0
 
-            location = gen.choice(self._locations)
+            gen.rand(35) # The first draw isn't very random - so skip it
             title = gen.create_sentence(self._titles)
             description = gen.create_paragraph(self._descriptions)
             price = str(gen.rand_price(title, self._title_weights))
             image = "../images/i%02d.jpg" % gen.rand(17)
+            location = gen.choice(self._locations)
 
             yield {
                 "description": description,
