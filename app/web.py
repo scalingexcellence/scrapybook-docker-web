@@ -166,7 +166,10 @@ class Benchmark(Resource):
         return self
 
     def render_GET(self, request):
-        return ('Resource not found')
+        return ('Benchmark section. Browse: '
+                '<a href="index">index</a> '
+                '<a href="detail">detail</a>, '
+                '<a href="api?text=hi">api</a>')
 
 
 class ILoginGate(Interface):
@@ -361,7 +364,7 @@ class Root(Resource):
                 '<a href="properties/index_00000.html">properties</a> '
                 '<a href="images">images</a>, '
                 '<a href="dynamic">dynamic</a>, '
-                '<a href="benchmark">benchmark</a> '
+                '<a href="benchmark/">benchmark</a> '
                 '<a href="maps/api/geocode/json?sensor=false&address=Camden%20Town%2C%20London">maps</a> ')
 
 if __name__ == '__main__':
