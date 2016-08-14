@@ -360,7 +360,7 @@ class Root(Resource):
         return self
 
     def render_GET(self, request):
-        return ('Resource not found. Try: '
+        return ('Welcome to Scrapy Book. Try: '
                 '<a href="properties/index_00000.html">properties</a> '
                 '<a href="images">images</a>, '
                 '<a href="dynamic">dynamic</a>, '
